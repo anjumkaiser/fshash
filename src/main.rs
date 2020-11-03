@@ -5,7 +5,7 @@ fn main() -> std::io::Result<()> {
     let exclude_list = populate_exclude_list();
 
     let start = Path::new("/tmp");
-    traverse_directory(start, &exclude_list);
+    let _ = traverse_directory(start, &exclude_list);
 
     //visit_dir();
 
@@ -42,7 +42,7 @@ fn traverse_directory(dir: &Path, exclude_list: &Vec<PathBuf>) -> io::Result<()>
         if let Ok(dir_entry) = dir_entry {
             let path = dir_entry.path();
             if path.is_dir() {
-                traverse_directory(&path, &exclude_list);
+                let _ = traverse_directory(&path, &exclude_list);
             } else if path.is_file() {
                 process_file(&path);
             }
