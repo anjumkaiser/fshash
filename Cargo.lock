@@ -69,7 +69,7 @@ version = "0.1.0"
 dependencies = [
  "directories-next",
  "sha2",
- "sqlite3",
+ "sqlite",
 ]
 
 [[package]]
@@ -141,10 +141,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "sqlite3"
-version = "0.24.0"
+name = "sqlite"
+version = "0.25.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1906b10f5e1940b3f2f758992f5958f9b27abaf2e028e86fa3c42f49fb5e583c"
+checksum = "35f759dc2e373e1edd0a27da87aa9136416360c5077a23643fcd6fcdc9cb9e31"
 dependencies = [
  "libc",
  "sqlite3-sys",

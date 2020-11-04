@@ -9,4 +9,4 @@ edition = "2018"
 [dependencies]
 directories-next = "2.0.0"
 sha2 = "0.9.1"
-sqlite3 = "0.24.0"
+sqlite = "0.25.3"

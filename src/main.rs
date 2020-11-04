@@ -14,15 +14,49 @@ fn main() -> std::io::Result<()> {
 
     let project_data_local_dir = project_base_dir.data_local_dir();
 
+    println!("a {:?}", project_data_local_dir.to_str().unwrap());
+
+    let mut sqlite_store_path = PathBuf::from(project_data_local_dir.to_str().unwrap());
+    sqlite_store_path.push("data.sql");
+    println!("sqlite data store path [{:?}]", sqlite_store_path);
+
+    let sqlite_connection = match sqlite::open(&sqlite_store_path) {
+        Ok(x) => x,
+        Err(_) => {
+            if let Err(e) = std::fs::metadata(project_data_local_dir) {
+                println!("{:?}", e);
+
+                println!("creating directory ...");
+                if let Err(e) = std::fs::create_dir_all(project_data_local_dir) {
+                    println!("failed to create directory {:?}, aborting ..", e);
+                    std::process::exit(0);
+                }
+            }
+
+            let sqlite_connection = match sqlite::open(sqlite_store_path) {
+                Ok(x) => x,
+                Err(e) => {
+                    println!("error processing file [{}]", e);
+                    std::process::exit(0);
+                }
+            };
+
+            let _ = sqlite_connection.execute(
+                "CREATE TABLE file_hashes ( path TEXT NOT NULL PRIMARY KEY, hash TEXT NOT NULL);",
+            );
+            sqlite_connection
+        }
+    };
+
     let exclude_list = populate_exclude_list(&[&project_data_local_dir]);
 
     let start_path = Path::new(".");
-    let _ = traverse_directory(start_path, &exclude_list);
+    let _ = traverse_directory(start_path, &exclude_list, &sqlite_connection);
 
     Ok(())
 }
 
-fn process_file(file_path: &Path) {
+fn process_file(file_path: &Path, sqlite_connection: &sqlite::Connection) {
     let mut buffer = [0; 4096];
     let mut hasher = Sha256::new();
 
@@ -74,9 +108,24 @@ fn process_file(file_path: &Path) {
     let hash_result = hasher.finalize();
 
     println!("{:?} hashed [{:x}]", file_name, hash_result);
+
+    let query = format!(
+        "insert into file_hashes(path, hash) values ({:?}, '{:x}')",
+        file_name, hash_result
+    );
+
+    //println!("query to execute {}", query);
+
+    if let Err(e) = sqlite_connection.execute(query) {
+        println!("error inserting into table {:?}", e);
+    };
 }
 
-fn traverse_directory(dir: &Path, exclude_list: &[PathBuf]) -> io::Result<()> {
+fn traverse_directory(
+    dir: &Path,
+    exclude_list: &[PathBuf],
+    sqlite_connection: &sqlite::Connection,
+) -> io::Result<()> {
     if !dir.is_dir() {
         return Ok(());
     }
@@ -100,9 +149,9 @@ fn traverse_directory(dir: &Path, exclude_list: &[PathBuf]) -> io::Result<()> {
                 continue;
             }
             if path.is_dir() {
-                let _ = traverse_directory(&path, &exclude_list);
+                let _ = traverse_directory(&path, &exclude_list, &sqlite_connection);
             } else if path.is_file() {
-                process_file(&path);
+                process_file(&path, &sqlite_connection);
             }
         }
     }
