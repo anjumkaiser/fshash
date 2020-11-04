@@ -1,28 +1,73 @@
+use sha2::{Digest, Sha256};
+use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
 fn main() -> std::io::Result<()> {
     let exclude_list = populate_exclude_list();
 
-    let start = Path::new("/tmp");
+    let start = Path::new(".");
     let _ = traverse_directory(start, &exclude_list);
-
-    //visit_dir();
 
     Ok(())
 }
 
-fn process_file(file: &Path) {
-    let file_name = file.to_path_buf();
-    let file_metadata = file.metadata();
-    println!(
-        "processing file: [{:?}], metadata [{:?}]",
-        file_name, file_metadata
-    );
+fn process_file(file_path: &Path) {
+    let mut buffer = [0; 4096];
+    let mut hasher = Sha256::new();
+
+    let sleep_duration = std::time::Duration::from_millis(1);
+
+    let file_name = file_path.to_path_buf();
+
+    let mut file_handle = match std::fs::File::open(&file_path) {
+        Ok(x) => x,
+        Err(e) => {
+            println!("error processing file [{}]", e);
+            return;
+        }
+    };
+
+    let file_metadata = match file_handle.metadata() {
+        Ok(x) => x,
+        Err(e) => {
+            println!("error reading metadata {:?}", e);
+            return;
+        }
+    };
+
+    let file_total_size: usize = file_metadata.len() as usize;
+    let mut total_bytes_read: usize = 0;
+
+    loop {
+        let bytes_read = match file_handle.read(&mut buffer[..]) {
+            Ok(x) => x,
+            Err(e) => {
+                println!("error reading bytes {:?}", e);
+                0
+            }
+        };
+
+        if bytes_read == 0 {
+            break;
+        }
+
+        total_bytes_read += bytes_read;
+
+        if total_bytes_read < file_total_size {
+            std::thread::sleep(sleep_duration);
+        }
+
+        hasher.update(&mut buffer[..bytes_read]);
+    }
+
+    let hash_result = hasher.finalize();
+
+    println!("{:?} hashed [{:x}]", file_name, hash_result);
 }
 
-fn traverse_directory(dir: &Path, exclude_list: &Vec<PathBuf>) -> io::Result<()> {
-    if dir.is_dir() == false {
+fn traverse_directory(dir: &Path, exclude_list: &[PathBuf]) -> io::Result<()> {
+    if !dir.is_dir() {
         return Ok(());
     }
 
@@ -48,8 +93,6 @@ fn traverse_directory(dir: &Path, exclude_list: &Vec<PathBuf>) -> io::Result<()>
             }
         }
     }
-
-    //dbg!(result);
 
     Ok(())
 }
