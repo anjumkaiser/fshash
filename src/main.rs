@@ -86,6 +86,9 @@ fn traverse_directory(dir: &Path, exclude_list: &[PathBuf]) -> io::Result<()> {
     for dir_entry in dir_entries {
         if let Ok(dir_entry) = dir_entry {
             let path = dir_entry.path();
+            if is_excluded_path(&path, exclude_list) {
+                continue;
+            }
             if path.is_dir() {
                 let _ = traverse_directory(&path, &exclude_list);
             } else if path.is_file() {
@@ -95,6 +98,19 @@ fn traverse_directory(dir: &Path, exclude_list: &[PathBuf]) -> io::Result<()> {
     }
 
     Ok(())
+}
+
+fn is_excluded_path(filename: &Path, exclude_list: &[PathBuf]) -> bool {
+    for excluded_entry in exclude_list {
+        if filename == excluded_entry {
+            println!(
+                "excluded entry matched at {:?}, {:?}, skipping ...",
+                filename, excluded_entry
+            );
+            return true;
+        }
+    }
+    false
 }
 
 fn populate_exclude_list() -> Vec<PathBuf> {
