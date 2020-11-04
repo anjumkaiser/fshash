@@ -4,7 +4,17 @@ use std::path::{Path, PathBuf};
 use std::{fs, io};
 
 fn main() -> std::io::Result<()> {
-    let exclude_list = populate_exclude_list();
+    let project_base_dir = match directories_next::ProjectDirs::from("com", "fshash", "fshash") {
+        Some(project_base_dir) => project_base_dir,
+        None => {
+            println!("FATAL ERROR: unable to get base directory");
+            std::process::exit(0);
+        }
+    };
+
+    let project_data_local_dir = project_base_dir.data_local_dir();
+
+    let exclude_list = populate_exclude_list(&[&project_data_local_dir]);
 
     let start_path = Path::new(".");
     let _ = traverse_directory(start_path, &exclude_list);
@@ -113,11 +123,20 @@ fn is_excluded_path(filename: &Path, exclude_list: &[PathBuf]) -> bool {
     false
 }
 
-fn populate_exclude_list() -> Vec<PathBuf> {
+fn populate_exclude_list(list: &[&Path]) -> Vec<PathBuf> {
     let mut exclude_list: std::vec::Vec<PathBuf> = Vec::<PathBuf>::new();
+
+    for item in list {
+        let p = item as &Path;
+        exclude_list.push(p.to_path_buf());
+    }
+
     exclude_list.push(PathBuf::from("/dev"));
     exclude_list.push(PathBuf::from("/proc"));
     exclude_list.push(PathBuf::from("/tmp"));
     exclude_list.push(PathBuf::from("/var"));
+
+    exclude_list.sort();
+
     exclude_list
 }
