@@ -6,8 +6,8 @@ use std::{fs, io};
 fn main() -> std::io::Result<()> {
     let exclude_list = populate_exclude_list();
 
-    let start = Path::new(".");
-    let _ = traverse_directory(start, &exclude_list);
+    let start_path = Path::new(".");
+    let _ = traverse_directory(start_path, &exclude_list);
 
     Ok(())
 }
