@@ -110,7 +110,7 @@ fn process_file(file_path: &Path, sqlite_connection: &sqlite::Connection) {
     println!("{:?} hashed [{:x}]", file_name, hash_result);
 
     let query = format!(
-        "insert into file_hashes(path, hash) values ({:?}, '{:x}')",
+        "insert or replace into file_hashes(path, hash) values ({:?}, '{:x}')",
         file_name, hash_result
     );
 
