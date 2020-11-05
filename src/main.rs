@@ -41,9 +41,14 @@ fn main() -> std::io::Result<()> {
                 }
             };
 
-            let _ = sqlite_connection.execute(
-                "CREATE TABLE file_hashes ( path TEXT NOT NULL PRIMARY KEY, hash TEXT NOT NULL);",
-            );
+            if let Err(e) = sqlite_connection.execute(
+                "CREATE TABLE file_hashes ( path TEXT NOT NULL PRIMARY KEY, hash TEXT NOT NULL, date_modified int NOT NULL);",
+            ) {
+
+                println!("error creating table [{:?}]", e );
+                std::process::exit(0);
+
+            }
             sqlite_connection
         }
     };
