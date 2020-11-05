@@ -129,7 +129,7 @@ fn process_file(file_path: &Path, sqlite_connection: &sqlite::Connection) {
 
     std::thread::sleep(sleep_duration);
 
-    if hash_this_file == false {
+    if !hash_this_file {
         println!("skipping file {:?}", file_name);
         return;
     }
