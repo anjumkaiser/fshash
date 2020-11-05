@@ -65,9 +65,72 @@ fn process_file(file_path: &Path, sqlite_connection: &sqlite::Connection) {
     let mut buffer = [0; 4096];
     let mut hasher = Sha256::new();
 
+    let mut hash_this_file: bool = true;
+
     let sleep_duration = std::time::Duration::from_millis(1);
 
     let file_name = file_path.to_path_buf();
+    let file_metadata = match file_path.metadata() {
+        Ok(x) => x,
+        Err(e) => {
+            println!("error getting file metadata, skipping [{}]", e);
+            return;
+        }
+    };
+
+    let file_sys_date_modified = match file_metadata.modified() {
+        Ok(x) => x,
+        Err(e) => {
+            println!("unable to get mdoified time of file, skipping . {:?}", e);
+            return;
+        }
+    };
+
+    let file_sys_date_modified_since_epoh: std::time::Duration =
+        match file_sys_date_modified.duration_since(std::time::SystemTime::UNIX_EPOCH) {
+            Ok(x) => x,
+            Err(e) => {
+                println!("FATAL Error converting time, [{:?}] skipping ...", e);
+                return;
+            }
+        };
+
+    let mut statement = match sqlite_connection.prepare("SELECT * FROM file_hashes WHERE path = ?")
+    {
+        Ok(x) => x,
+        Err(e) => {
+            println!("unable to prepare statement {:?}", e);
+            return;
+        }
+    };
+
+    let fname_str = match file_name.to_str() {
+        Some(x) => x,
+        None => {
+            return;
+        }
+    };
+
+    let _ = statement.bind(1, fname_str);
+
+    while let sqlite::State::Row = match statement.next() {
+        Ok(x) => x,
+        Err(_) => {
+            println!("FATAL: unable to fetch row, skipping...");
+            return;
+        }
+    } {
+        if let Ok(x) = statement.read::<f64>(2) {
+            if x == file_sys_date_modified_since_epoh.as_secs_f64() {
+                hash_this_file = false;
+            }
+        };
+    }
+
+    if hash_this_file == false {
+        println!("skipping file {:?}", file_name);
+        return;
+    }
 
     let mut file_handle = match std::fs::File::open(&file_path) {
         Ok(x) => x,
@@ -114,9 +177,10 @@ fn process_file(file_path: &Path, sqlite_connection: &sqlite::Connection) {
 
     println!("{:?} hashed [{:x}]", file_name, hash_result);
 
-    let query = format!(
-        "insert or replace into file_hashes(path, hash) values ({:?}, '{:x}')",
-        file_name, hash_result
+    let query =
+        format!(
+        "insert or replace into file_hashes(path, hash, date_modified) values ({:?}, '{:x}', '{}')",
+        file_name, hash_result, file_sys_date_modified_since_epoh.as_secs_f64()
     );
 
     //println!("query to execute {}", query);
